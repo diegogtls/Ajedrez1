@@ -27,5 +27,3 @@ class Board:
                     row.append(".")
             rows.append(" ".join(row))
         return "\n".join(rows)
-
-        #Quiero que esto se actualice en github
