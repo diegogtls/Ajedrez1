@@ -1,12 +1,16 @@
 from .board import Board
 from .piece import Piece, Rook, Knight, Bishop, Queen, King, Pawn
 from .player import Player
+from .utils import count_pieces, square_color, find_piece_position
 
 class Game:
     def __init__(self, player_white, player_black):
         self.board = Board()
         self.players = {"white": player_white, "black": player_black}
         self.turn = "white"  # empieza el turno de las blancas
+        self.winner = None # None = partida en curso, "draw" = tablas, Player = ganador
+        self.turn_count = 1 # Contador general de turnos
+        self.fifty_move_counter = 0 # Contador de turnos para la regla de los 50 movimientos
 
         # Colocar piezas
         # Torres
@@ -52,10 +56,32 @@ class Game:
         self.board.place_piece(Pawn("black"), (1, 5))
         self.board.place_piece(Pawn("black"), (1, 6))
         self.board.place_piece(Pawn("black"), (1, 7))
-    
+
+    def has_legal_moves(self, color):
+        """Devuelve True si el jugador 'color' tiene al menos un movimiento legal."""
+        for i in range(8):
+            for j in range(8):
+                piece = self.board.grid[i][j]
+                if piece is None or piece.color != color:
+                    continue
+                for end in piece.get_moves((i, j), self.board):
+                    # Guardar estado previo
+                    original = self.board.grid[end[0]][end[1]]
+                    self.board.move_piece((i, j), end)
+                    if not self.is_in_check(color):
+                        # Deshacer y devolver True
+                        self.board.move_piece(end, (i, j))
+                        self.board.grid[end[0]][end[1]] = original
+                        return True
+                    # Deshacer movimiento
+                    self.board.move_piece(end, (i, j))
+                    self.board.grid[end[0]][end[1]] = original
+        return False
+
     def switch_turn(self):
         """Cambia de turno entre blanco y negro"""
         self.turn = "black" if self.turn == "white" else "white"
+        self.turn_count += 1
 
     def current_player(self):
         """Devuelve el jugador actual"""
@@ -106,46 +132,33 @@ class Game:
                 promoted_name = input_piece("Peón promocionado! Elige: Queen, Rook, Bishop o Knight: ")
 
                 # Instanciar la pieza con el color correcto automáticamente
-                if promoted_name == "Queen":
-                    promoted_piece = Queen(piece.color)
-                elif promoted_name == "Rook":
-                    promoted_piece = Rook(piece.color)
-                elif promoted_name == "Bishop":
-                    promoted_piece = Bishop(piece.color)
-                else:  # Knight
-                    promoted_piece = Knight(piece.color)
+                promotions = {
+                    "Queen": Queen,
+                    "Rook": Rook,
+                    "Bishop": Bishop,
+                    "Knight": Knight
+                }
+                promoted_piece = promotions[promoted_name](piece.color)
 
                 # Reemplazar el peón en el tablero
                 self.board.grid[end[0]][end[1]] = promoted_piece
 
-        # Si es válido, cambiar turno
-        self.switch_turn()
-        return True
-
-            # Promoción de peón
-            if isinstance(piece, Pawn):
-                final_row = 0 if piece.color == "white" else 7
-                if end[0] == final_row:
-                    promoted_name = input_piece("Peón promocionado! Elige: Queen, Rook, Bishop o Knight: ")
-
-                    # Instanciar la pieza con el color correcto automáticamente
-                    if promoted_name == "Queen":
-                        promoted_piece = Queen(piece.color)
-                    elif promoted_name == "Rook":
-                        promoted_piece = Rook(piece.color)
-                    elif promoted_name == "Bishop":
-                        promoted_piece = Bishop(piece.color)
-                    else:  # Knight
-                        promoted_piece = Knight(piece.color)
-
-                    # Reemplazar el peón en el tablero
-                    self.board.grid[end[0]][end[1]] = promoted_piece
-
-            self.switch_turn()
-            return True
+        #Verificación contador 50 movimientos para tablas
+        if isinstance(piece, Pawn) or original_target is not None:
+            self.fifty_move_counter = 0  # reinicia al mover peón o capturar
         else:
-            print("Movimiento ilegal.")
-            return False
+            self.fifty_move_counter += 1  # incrementa en cualquier otro movimiento
+
+        # Verificación jaque mate y tablas
+        enemy_color = "black" if self.turn == "white" else "white"
+        if self.is_checkmate(enemy_color):
+            self.winner = self.current_player()
+        elif self.is_draw:
+            self.winner = "draw"
+        else:
+            self.switch_turn()
+
+        return True
 
     def is_in_check(self, color):
         # Buscar la posición del rey
@@ -166,5 +179,47 @@ class Game:
                         return True  # Rey atacado
         return False
 
+    def is_checkmate(self, color):
+        """Devuelve True si el jugador 'color' está en jaque mate"""
+        return self.is_in_check(color) and not self.has_legal_moves(color)
 
-    
+    def is_draw(self):
+        """Devuelve True si son tablas"""
+
+        # Rey Ahogado
+        if not self.is_in_check(color) and not self.has_legal_moves(color):
+            return True
+
+        # Material insuficiente
+        white_counts, black_counts = count_pieces(self.board)
+
+        # Rey vs Rey
+        if white_counts == {"King": 1} and black_counts == {"King": 1}:
+            return True
+
+        # Rey + alfil vs Rey
+        if ("Bishop" in white_counts and len(white_counts) == 2 and black_counts == {"King": 1}) \
+        or ("Bishop" in black_counts and len(black_counts) == 2 and white_counts == {"King": 1}):
+            return True
+
+        # Rey + Caballo vs Rey
+        if ("Knight" in white_counts and len(white_counts) == 2 and black_counts == {"King": 1}) \
+        or ("Knight" in black_counts and len(black_counts) == 2 and white_counts == {"King": 1}):
+            return True
+
+        # Rey + alfil vs Rey + alfil (alfiles en casillas del mismo color)
+        if ("Bishop" in white_counts and len(white_counts) == 2 and "Bishop" in black_counts and len(black_counts) == 2):
+            white_bishop_pos = find_piece_position(self.board, "white", "Bishop")
+            black_bishop_pos = find_piece_position(self.board, "black", "Bishop")
+            if square_color(white_bishop_pos) == square_color(black_bishop_pos):
+                return True
+
+        # Misma posición del tablero 3 veces
+        ## Más adelante
+        
+        # No hay movimiento de peón ni capturas en 50 movimientos consecutivos
+        if self.fifty_move_counter >= 100:  # 100 medias jugadas = 50 turnos
+            return True  # tablas por regla de 50 movimientos
+
+        # si no se cumple ninguna de las anteriores: no hay tablas
+        return False

@@ -169,6 +169,7 @@ class Queen(Piece):
         
         return moves
 
+# Rey
 class King(Piece):
     symbol = "K"
     def get_moves(self, position, board):
