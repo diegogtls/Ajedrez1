@@ -1,7 +1,7 @@
+
 class Piece:
     def __init__(self, color):
         self.color = color #"white" o "black"
-
     def get_moves(self, position, board):
         raise NotImplementedError
     def __str__(self):
@@ -137,4 +137,85 @@ class Bishop(Piece):
             else:  # pieza propia
                 break
                 
+        return moves
+
+# Dama
+class Queen(Piece):
+    symbol = "Q"
+    def get_moves(self, position, board):
+        moves = []
+        x, y = position
+        
+        # 8 direcciones: diagonales + rectas
+        directions = [
+            (-1, -1), (-1, 1), (1, -1), (1, 1),  # diagonales
+            (-1, 0), (1, 0), (0, -1), (0, 1)     # rectas
+        ]
+        
+        for dx, dy in directions:
+            i, j = x + dx, y + dy
+            while 0 <= i < 8 and 0 <= j < 8:  # mientras esté dentro del tablero
+                target = board.grid[i][j]
+                if target is None:  # casilla vacía
+                    moves.append((i, j))
+                elif target.color != self.color:  # pieza rival
+                    moves.append((i, j))
+                    break
+                else:  # pieza propia
+                    break
+                # seguimos en la misma dirección
+                i += dx
+                j += dy
+        
+        return moves
+
+class King(Piece):
+    symbol = "K"
+    def get_moves(self, position, board):
+        moves = []
+        x, y = position
+
+        # 8 direcciones posibles (diagonales + rectas)
+        directions = [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1),          (0, 1),
+            (1, -1),  (1, 0), (1, 1)
+        ]
+
+        for dx, dy in directions:
+            i, j = x + dx, y + dy
+            # Solo una casilla en cada dirección
+            if 0 <= i < 8 and 0 <= j < 8:
+                target = board.grid[i][j]
+                if target is None or target.color != self.color:
+                    moves.append((i, j))
+
+        return moves
+
+# Peón
+class Pawn(Piece):
+    symbol = "P"
+
+    def get_moves(self, position, board):
+        moves = []
+        x, y = position
+        direction = -1 if self.color == "white" else 1  # blanco va hacia arriba, negro hacia abajo
+        
+        # Avanzar una casilla
+        if 0 <= x + direction < 8 and board.grid[x + direction][y] is None:
+            moves.append((x + direction, y))
+            
+            # Avanzar dos casillas desde la posición inicial
+            start_row = 6 if self.color == "white" else 1
+            if x == start_row and board.grid[x + 2 * direction][y] is None:
+                moves.append((x + 2 * direction, y))
+
+        # Capturas diagonales
+        for dy in [-1, 1]:
+            nx, ny = x + direction, y + dy
+            if 0 <= nx < 8 and 0 <= ny < 8:
+                target = board.grid[nx][ny]
+                if target is not None and target.color != self.color:
+                    moves.append((nx, ny))
+
         return moves

@@ -15,3 +15,10 @@ def input_square(prompt):
         if len(square) == 2 and square[0] in "abcdefgh" and square[1] in "12345678":
             return square
         print("Entrada inválida. Usa formato como 'a1', 'b2', etc.")
+
+def input_piece(prompt):
+    while True:
+        piece = input(prompt)
+        if piece in ("Queen", "Rook", "Bishop", "knight"):
+            return piece
+        print("Entrada inválida. Elige una pieza: Queen, Rook, Bishop o knight: ")
