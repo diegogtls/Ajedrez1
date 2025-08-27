@@ -1,7 +1,8 @@
 from .board import Board
 from .piece import Piece, Rook, Knight, Bishop, Queen, King, Pawn
 from .player import Player
-from .utils import count_pieces, square_color, find_piece_position
+from .utils import count_pieces, square_color, find_piece_position, board_signature
+from collections import Counter
 
 class Game:
     def __init__(self, player_white, player_black):
@@ -11,6 +12,7 @@ class Game:
         self.winner = None # None = partida en curso, "draw" = tablas, Player = ganador
         self.turn_count = 1 # Contador general de turnos
         self.fifty_move_counter = 0 # Contador de turnos para la regla de los 50 movimientos
+        self.signatures = Counter()
 
         # Colocar piezas
         # Torres
@@ -142,6 +144,10 @@ class Game:
 
                 # Reemplazar el peón en el tablero
                 self.board.grid[end[0]][end[1]] = promoted_piece
+        
+        # Guarda la posición del tablero
+        sig = board_signature(self.board, self.turn)
+        self.signatures[sig] += 1
 
         #Verificación contador 50 movimientos para tablas
         if isinstance(piece, Pawn) or original_target is not None:
@@ -151,9 +157,10 @@ class Game:
 
         # Verificación jaque mate y tablas
         enemy_color = "black" if self.turn == "white" else "white"
+
         if self.is_checkmate(enemy_color):
             self.winner = self.current_player()
-        elif self.is_draw:
+        elif self.is_draw(enemy_color):
             self.winner = "draw"
         else:
             self.switch_turn()
@@ -179,15 +186,15 @@ class Game:
                         return True  # Rey atacado
         return False
 
-    def is_checkmate(self, color):
-        """Devuelve True si el jugador 'color' está en jaque mate"""
-        return self.is_in_check(color) and not self.has_legal_moves(color)
+    def is_checkmate(self, enemy_color):
+        """Devuelve True si el jugador 'enemy_color' está en jaque mate"""
+        return self.is_in_check(enemy_color) and not self.has_legal_moves(enemy_color)
 
-    def is_draw(self):
+    def is_draw(self, enemy_color):
         """Devuelve True si son tablas"""
 
         # Rey Ahogado
-        if not self.is_in_check(color) and not self.has_legal_moves(color):
+        if not self.is_in_check(enemy_color) and not self.has_legal_moves(enemy_color):
             return True
 
         # Material insuficiente
@@ -215,8 +222,9 @@ class Game:
                 return True
 
         # Misma posición del tablero 3 veces
-        ## Más adelante
-        
+        if any(count >= 3 for count in self.signatures.values()):
+            return True
+
         # No hay movimiento de peón ni capturas en 50 movimientos consecutivos
         if self.fifty_move_counter >= 100:  # 100 medias jugadas = 50 turnos
             return True  # tablas por regla de 50 movimientos

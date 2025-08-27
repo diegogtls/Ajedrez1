@@ -1,4 +1,5 @@
 from collections import Counter
+import hashlib
 
 letras = "abcdefgh"
 
@@ -48,3 +49,35 @@ def find_piece_position(board, color, piece_type_name):
             piece = board.grid[i][j]
             if piece is not None and piece.color == color and type(piece).__name__ == piece_type_name:
                 return (i, j)
+
+def board_signature(board, turn):
+    """
+    Devuelve una firma única (hash SHA256) de la posición actual del tablero,
+    usando notación FEN simplificada (solo piezas y casillas vacías).
+    """
+    rows = []
+    for i in range(8):
+        row = ""
+        empty_count = 0
+        for j in range(8):
+            piece = board.grid[i][j]
+            if piece is None:
+                empty_count += 1
+            else:
+                if empty_count > 0:
+                    row += str(empty_count)
+                    empty_count = 0
+                symbol = piece.symbol.upper() if piece.color == "white" else piece.symbol.lower()
+                row += symbol
+        if empty_count > 0:  # cerrar la fila si termina con vacías
+            row += str(empty_count)
+        rows.append(row)
+
+    # Unir filas como en FEN
+    fen_position = "/".join(rows)
+
+    # Añadir el turno (w o b) para distinguir posiciones
+    fen_with_turn = fen_position + " " + ("w" if turn == "white" else "b")
+
+    # Devolver hash seguro
+    return hashlib.sha256(fen_with_turn.encode()).hexdigest()
