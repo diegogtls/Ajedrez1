@@ -2,15 +2,19 @@
 class Piece:
     def __init__(self, color):
         self.color = color #"white" o "black"
+        self.has_moved = False  # todas las piezas lo heredan
     def get_moves(self, position, board):
         raise NotImplementedError
     def __str__(self):
         return self.symbol
-
+    
 # Torre
 class Rook(Piece):
-    symbol = "R"
-    def get_moves(self, position, board):
+    def __init__(self, color):
+        super().__init__(color)  # inicializa self.color
+        self.symbol = "♜" if self.color == "white" else "♖"
+    
+    def get_moves(self, position, board, game=None):
         moves = []
         x, y = position # Consideramos el 0,0 en la esquina superior izquierda x mueve vertical, y mueve horizontal
 
@@ -62,8 +66,11 @@ class Rook(Piece):
 
 # Caballo
 class Knight(Piece):
-    symbol = "N"
-    def get_moves(self, position, board):
+    def __init__(self, color):
+        super().__init__(color)  # inicializa self.color
+        self.symbol = "♞" if self.color == "white" else "♘"
+    
+    def get_moves(self, position, board, game=None):
         moves = []
         x, y = position # Consideramos el 0,0 en la esquina superior izquierda
 
@@ -88,8 +95,11 @@ class Knight(Piece):
 
 # Alfil
 class Bishop(Piece):
-    symbol = "B"
-    def get_moves(self, position, board):
+    def __init__(self, color):
+        super().__init__(color)  # inicializa self.color
+        self.symbol = "♝" if self.color == "white" else "♗"
+    
+    def get_moves(self, position, board, game=None):
         moves = []
         x, y = position # Consideramos el 0,0 en la esquina superior izquierda
 
@@ -141,8 +151,11 @@ class Bishop(Piece):
 
 # Dama
 class Queen(Piece):
-    symbol = "Q"
-    def get_moves(self, position, board):
+    def __init__(self, color):
+        super().__init__(color)  # inicializa self.color
+        self.symbol = "♛" if self.color == "white" else "♕"
+    
+    def get_moves(self, position, board, game=None):
         moves = []
         x, y = position
         
@@ -171,8 +184,11 @@ class Queen(Piece):
 
 # Rey
 class King(Piece):
-    symbol = "K"
-    def get_moves(self, position, board):
+    def __init__(self, color):
+        super().__init__(color)  # inicializa self.color
+        self.symbol = "♚" if self.color == "white" else "♔"
+    
+    def get_moves(self, position, board, game=None):
         moves = []
         x, y = position
 
@@ -191,13 +207,23 @@ class King(Piece):
                 if target is None or target.color != self.color:
                     moves.append((i, j))
 
+        # Enroque (solo si se pasó la instancia de game)
+        if game is not None:
+            row = 7 if self.color == "white" else 0
+            if game.can_castle_kingside(self.color): # Enroque Corto
+                moves.append((row, 6))
+            if game.can_castle_queenside(self.color): # Enroque Largo
+                moves.append((row, 2))
+
         return moves
 
 # Peón
 class Pawn(Piece):
-    symbol = "P"
+    def __init__(self, color):
+        super().__init__(color)  # inicializa self.color
+        self.symbol = "♟" if self.color == "white" else "♙"
 
-    def get_moves(self, position, board):
+    def get_moves(self, position, board, game=None):
         moves = []
         x, y = position
         direction = -1 if self.color == "white" else 1  # blanco va hacia arriba, negro hacia abajo
@@ -218,5 +244,12 @@ class Pawn(Piece):
                 target = board.grid[nx][ny]
                 if target is not None and target.color != self.color:
                     moves.append((nx, ny))
+
+        # Captura al paso
+        if game is not None:
+            row = 2 if self.color == "white" else 5
+            if game.can_en_passant(position):
+                y = game.last_move["end"][1]
+                moves.append((row, y))
 
         return moves

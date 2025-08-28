@@ -21,7 +21,7 @@ def input_square(prompt):
 
 def input_piece(prompt):
     while True:
-        piece = input(prompt)
+        piece = input(prompt).capitalize()
         if piece in ("Queen", "Rook", "Bishop", "knight"):
             return piece
         print("Entrada inválida. Elige una pieza: Queen, Rook, Bishop o knight: ")
